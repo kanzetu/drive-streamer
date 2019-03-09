@@ -92,11 +92,11 @@ function start(){
 			./drive-api.sh
 			exit
 		fi
-		ID=(`echo $output | jq '.[]'  | grep id | cut -d'"' -f4 `)
+		ID=(`echo $output | jq '.[]'  | grep "\"id\"" | cut -d'"' -f4 `)
 		NAME=(`echo $output | jq '.[]' | grep name | cut -d'"' -f4`)
 		METATYPE=(`echo $output | jq '.[]' | grep mimeType | cut -d'"' -f4`)
 		(printf "Line,File Name,File Type\n" && for i in "${!NAME[@]}"; do 
-																			printf "%s,%s,%s\n" "$i" "${NAME[$i]}" "${METATYPE[$i]}"
+																			printf "%s,%s,%s,%s\n" "$i" "${NAME[$i]}" "${METATYPE[$i]}"
 																		done)  | column -t -s ','
 		while : ; do
 			printf "\nYour choice:"
