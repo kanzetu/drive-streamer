@@ -1,6 +1,7 @@
 #!/bin/bash
 ## Requied arai2 mpv jq nodejs
 
+#============================ Initial
 IFS=$'\n'
 
 export ACCESS_TOKEN="`cat token.json | cut -d'\"' -f4`"
@@ -12,6 +13,18 @@ export MPV_ARG="-http-header-fields='Authorization: Bearer $ACCESS_TOKEN','Accep
 export API_ADDR_v3="https://www.googleapis.com/drive/v3/files"
 export API_ADDR_v2="https://www.googleapis.com/drive/v2/files"
 
+function testconnection(){
+		output="`eval curl  $CURL_ARG  --compressed  "$API_ADDR_v3?q=%27root%27%20in%20parents%20and%20trashed%20=%20false"`"
+		if [[ ! -z "`echo $output | grep 'Invalid Credentials'`" ]];then
+			printf "Credentials not valid, update now."
+			rm token.json
+			node googleapi.js
+			./drive-api.sh
+			exit
+		fi
+}
+
+#============================
 
 function list_folder(){
 	node googleapi_list.js "$1" > tmp
@@ -76,7 +89,7 @@ function readtext(){
 }
 
 function play_video(){
-	eval mpv $MPV_ARG --prefetch-playlist --autofit-larger=80%x80% "https://www.googleapis.com/drive/v3/files/$1?alt=media"
+	eval mpv $MPV_ARG --prefetch-playlist --keep-open=always --autofit-larger=80%x80% "https://www.googleapis.com/drive/v3/files/$1?alt=media"
 }
 
 function play_image(){
@@ -209,6 +222,7 @@ function video_menu(){
 
 function start(){
 	export work_dir="root"
+	testconnection
 	if [ ! -f credentials.json ];then
 		echo "Goto https://developers.google.com/drive/api/v3/quickstart/go > Step1 get 'credentials.json' first!!"
 		exit
