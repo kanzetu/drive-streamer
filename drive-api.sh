@@ -93,8 +93,11 @@ function play_video(){
 }
 
 function play_image(){
-	declare -a ID=("${!1}")
-	declare -a NAME=("${!2}")
+	#declare -a ID=("${!1}")
+	#declare -a NAME=("${!2}")
+	ID=("${@}")
+	shift
+	NAME=("${@}")
 	echo "" > a.txt
 	for i in "${!ID[@]}"; do 
 		if [ -z "`echo ${NAME[i]} | grep '._'`" ]; then
@@ -222,11 +225,11 @@ function video_menu(){
 
 function start(){
 	export work_dir="root"
-	testconnection
 	if [ ! -f credentials.json ];then
 		echo "Goto https://developers.google.com/drive/api/v3/quickstart/go > Step1 get 'credentials.json' first!!"
 		exit
 	fi
+	testconnection
 	while : ; do
 		unset ID
 		unset NAME
@@ -264,7 +267,7 @@ function start(){
 			elif [[ "$tmp" == "r" ]]; then
 				export work_dir=root
 			elif [[ "$tmp" == "p" ]]; then
-				play_image ID[@] NAME[@]
+				play_image ${ID[@]} ${NAME[@]}
 			elif [[ "$tmp" == "s" ]]; then
 				search
 			fi
