@@ -70,7 +70,7 @@ function getAccessToken(oAuth2Client, callback) {
 function listFiles(auth) {
   const drive = google.drive({version: 'v3', auth});
   drive.files.list({
-    q: "parents='"+ process.argv[2] + "' and trashed=false",
+    q: "parents='"+ process.argv[2] + "' and trashed=false and not name contains 'DS_Store'",
     pageSize: 1000,
     orderBy: 'name',
     fields: 'nextPageToken, files(id, name,mimeType)',

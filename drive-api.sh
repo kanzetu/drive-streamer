@@ -34,6 +34,39 @@ function list_folder(){
 function get_parents(){
 	eval curl  $CURL_ARG  --compressed  "$API_ADDR_v3/$1?fields=parents" | sed "3q;d" |cut -d'"' -f2
 }
+#============================ Bookmark
+function add_bookmark(){
+	echo "$1,$2" >> bookmark
+}
+
+function bookmark(){
+		clear
+		n=(`cat bookmark | cut -d',' -f2`)
+		id=(`cat bookmark | cut -d',' -f1`)
+		printf "Bookmark\n\n"
+		(	printf "Line,File Name\n" 
+			for i in "${!n[@]}"; do 
+				printf "%s,%s,%s\n" "$i" "${n[$i]}" "${id[$i]}"
+			done
+			printf "\n , \nd,Delete Bookmark\nq,Quit\n"
+		)  | column -t -s ','
+		while : ; do
+			printf "\nYour choice:"
+			read tmp
+			if [[ "$tmp" -eq "b" || "$tmp" -lt "${#n[@]}" && "$tmp" -ge 0 ]];then
+				break
+			fi
+		done
+		
+		if ! [[ "$tmp" =~ ^[0-9]+$ ]]; then
+			if [[ "$tmp" == "q" ]]; then
+				return
+			fi
+		else
+			export work_dir="${id[$tmp]}"
+			return
+		fi
+}
 
 #============================ Search
 function search(){
@@ -58,8 +91,6 @@ function search(){
 		if ! [[ "$tmp" =~ ^[0-9]+$ ]]; then
 			if [[ "$tmp" == "q" ]]; then
 				return
-			elif [[ "$tmp" == "p" ]]; then
-				play_image ID[@]
 			fi
 		else
 			if [[ "${METATYPE[$tmp]}" == "application/vnd.google-apps.folder" ]];then
@@ -68,7 +99,6 @@ function search(){
 			elif [[ "${METATYPE[$tmp]}" == "application/rar" ]];then
 				file_menu "${ID[$tmp]}" "${NAME[$tmp]}"
 			elif [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f1`" == "video" ]] || [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f1`" == "image" ]]  || [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f1`" == "audio" ]];then
-				echo "video"
 				video_menu "${ID[$tmp]}" "${NAME[$tmp]}"
 			elif [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f2`" == "html" ]] || [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f2`" == "x-link-url" ]] || [[ "${METATYPE[$tmp]}" == "message/rfc822" ]] ;then
 				html_menu "${ID[$tmp]}" "${NAME[$tmp]}" "${METATYPE[$tmp]}"
@@ -93,14 +123,31 @@ function play_video(){
 }
 
 function play_image(){
-	#declare -a ID=("${!1}")
-	#declare -a NAME=("${!2}")
 	ID=("${@}")
 	shift
-	NAME=("${@}")
+	NAME=("${!2}")
 	echo "" > a.txt
 	for i in "${!ID[@]}"; do 
 		if [ -z "`echo ${NAME[i]} | grep '._'`" ]; then
+			echo "https://www.googleapis.com/drive/v3/files/${ID[i]}?alt=media" >> a.txt
+		fi
+	done
+	eval mpv $MPV_ARG --keep-open=always --prefetch-playlist --autofit-larger=80%x80% --playlist=a.txt
+	rm a.txt
+}
+
+function play_image_byIndex(){
+	ID=("${@}")
+	printf "Input the range [num]-(num) (e.g. 4-10 / 4- ): "
+	read tmp
+	start=`echo $tmp|cut -d'-' -f1`
+	end=`echo $tmp|cut -d'-' -f2`
+	echo "" > a.txt
+	for i in "${!ID[@]}"; do 
+		if ! [ -z $end ] && [ "$i" -gt "$end" ]; then
+			break
+		fi
+		if  [ "$i" -ge "$start" ]; then
 			echo "https://www.googleapis.com/drive/v3/files/${ID[i]}?alt=media" >> a.txt
 		fi
 	done
@@ -235,6 +282,9 @@ function start(){
 		unset NAME
 		unset METATYPE
 		clear
+		if [[ "$tmp" == "m" ]]; then
+			printf "%s marked to Bookmart\n\n" "$n"
+		fi
 		unset output
 		list_folder $work_dir
 		if [[ ! -z "`cat tmp | grep 'Authorize this app by visiting this url'`" ]];then
@@ -252,7 +302,7 @@ function start(){
 			for i in "${!NAME[@]}"; do 
 				printf "%s,%s,%s,%s\n" "$i" "${NAME[$i]}" "${METATYPE[$i]}"
 			done
-			printf "\n , \np,Play all in thie directory\ns,Search\nb,Back\nr,root directory\n"
+			printf "\n , \np,Play all in the directory\ni,Play all in the directory with index\nm,Add to Bookmark\nM,Goto Bookmark\ns,Search\nb,Back\nr,root directory\n"
 		)  | column -t -s ','
 		while : ; do
 			printf "\nYour choice:"
@@ -268,8 +318,15 @@ function start(){
 				export work_dir=root
 			elif [[ "$tmp" == "p" ]]; then
 				play_image ${ID[@]} ${NAME[@]}
+			elif [[ "$tmp" == "i" ]]; then
+				play_image_byIndex ${ID[@]} 
 			elif [[ "$tmp" == "s" ]]; then
 				search
+			elif [[ "$tmp" == "m" ]]; then
+				n="`eval curl  $CURL_ARG  --compressed  \"$API_ADDR_v3/$work_dir?fields=name\" | grep name | cut -d'\"' -f4`"
+				add_bookmark "$work_dir" "$n"
+			elif [[ "$tmp" == "M" ]]; then	
+				bookmark
 			fi
 		else
 			if [[ "${METATYPE[$tmp]}" == "application/vnd.google-apps.folder" ]];then
@@ -278,7 +335,6 @@ function start(){
 			elif [[ "${METATYPE[$tmp]}" == "application/rar" ]];then
 				file_menu "${ID[$tmp]}" "${NAME[$tmp]}"
 			elif [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f1`" == "video" ]] || [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f1`" == "image" ]]  || [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f1`" == "audio" ]];then
-				echo "video"
 				video_menu "${ID[$tmp]}" "${NAME[$tmp]}"
 			elif [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f2`" == "html" ]] || [[ "`echo ${METATYPE[$tmp]}|cut -d'/' -f2`" == "x-link-url" ]] || [[ "${METATYPE[$tmp]}" == "message/rfc822" ]] ;then
 				html_menu "${ID[$tmp]}" "${NAME[$tmp]}" "${METATYPE[$tmp]}"
