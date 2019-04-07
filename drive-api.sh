@@ -8,7 +8,7 @@ export ACCESS_TOKEN="`cat token.json | cut -d'\"' -f4`"
 
 export CURL_ARG="--header 'Authorization: Bearer $ACCESS_TOKEN'  --header 'Accept: application/json'  -s "
 export ARIA2_ARG="-x15 --file-allocation=trunc --header='Authorization: Bearer $ACCESS_TOKEN' --header='Accept: application/json'"
-export MPV_ARG="-http-header-fields='Authorization: Bearer $ACCESS_TOKEN','Accept: application/json'"
+export MPV_ARG="-http-header-fields='Authorization: Bearer $ACCESS_TOKEN','Accept: application/json' --input-conf input.conf"
 
 export API_ADDR_v3="https://www.googleapis.com/drive/v3/files"
 export API_ADDR_v2="https://www.googleapis.com/drive/v2/files"
@@ -38,7 +38,9 @@ function get_parents(){
 function add_bookmark(){
 	echo "$1,$2" >> bookmark
 }
-
+function del_bookmark(){
+	echo a
+}
 function bookmark(){
 		clear
 		n=(`cat bookmark | cut -d',' -f2`)
@@ -61,6 +63,10 @@ function bookmark(){
 		if ! [[ "$tmp" =~ ^[0-9]+$ ]]; then
 			if [[ "$tmp" == "q" ]]; then
 				return
+			elif [[ "$tmp" == "d" ]]; then
+				printf "Enter the number u want delete:"
+				read del
+				del_bookmark "${id[$i]}"
 			fi
 		else
 			export work_dir="${id[$tmp]}"
@@ -113,6 +119,8 @@ function download_file(){
 	eval aria2c $ARIA2_ARG "https://www.googleapis.com/drive/v3/files/$1?alt=media"  -o downloads/"\"$2\""
 }
 
+
+
 #========================== META Function
 function readtext(){
 	eval curl $CURL_ARG "https://www.googleapis.com/drive/v3/files/$1?alt=media" | less -r
@@ -159,9 +167,9 @@ function text_menu(){
 	clear
 	size=`eval curl $CURL_ARG --compressed $API_ADDR_v3/"$1"?fields=size|grep size|cut -d'"' -f4`
 	printf "File Name:%-10s\nSize:%-10s" "$2" "$size"
-	printf "Menu\n\n"
+	printf "\nMenu\n\n"
 	(printf "Choice\n"
-	printf "1, Read text\nr,Return\n") | column -t -s ','
+	printf "1, Read text\nq,Return\n") | column -t -s ','
 	while : ; do
 		echo "Your Choice:"
 		read tmp
@@ -170,7 +178,7 @@ function text_menu(){
 				readtext "$1"
 				return
 				;;
-			r)
+			q)
 				return
 				;;
 			*)
@@ -183,9 +191,9 @@ function html_menu(){
 	clear
 	size=`eval curl $CURL_ARG --compressed $API_ADDR_v3/"$1"?fields=size|grep size|cut -d'"' -f4`
 	printf "File Name:%-10s\nSize:%-10s" "$2" "$size"
-	printf "Menu\n\n"
+	printf "\nMenu\n\n"
 	(printf "Choice\n"
-	printf "1, Read text\nr,Return\n") | column -t -s ','
+	printf "1, Read text\nq,Return\n") | column -t -s ','
 	while : ; do
 		echo "Your Choice:"
 		read tmp
@@ -194,7 +202,7 @@ function html_menu(){
 				eval curl $CURL_ARG "https://www.googleapis.com/drive/v3/files/$1?alt=media" | w3m -T $3
 				return
 				;;
-			r)
+			q)
 				return
 				;;
 			*)
@@ -207,9 +215,9 @@ function file_menu(){
 	clear
 	size=`eval curl $CURL_ARG --compressed $API_ADDR_v3/"$1"?fields=size|grep size|cut -d'"' -f4`
 	printf "File Name:%-10s\nSize:%-10s" "$2" "$size"
-	printf "Menu\n\n"
+	printf "\nMenu\n\n"
 	(printf "Choice\n"
-	printf "1, Download\nr,Return\n") | column -t -s ','
+	printf "1, Download\nq,Return\n") | column -t -s ','
 	while : ; do
 		echo "Your Choice:"
 		read tmp
@@ -218,7 +226,7 @@ function file_menu(){
 				download_file "$1" "$2"
 				return
 				;;
-			r)
+			q)
 				return
 				;;
 			*)
@@ -302,7 +310,7 @@ function start(){
 			for i in "${!NAME[@]}"; do 
 				printf "%s,%s,%s,%s\n" "$i" "${NAME[$i]}" "${METATYPE[$i]}"
 			done
-			printf "\n , \np,Play all in the directory\ni,Play all in the directory with index\nm,Add to Bookmark\nM,Goto Bookmark\ns,Search\nb,Back\nr,root directory\n"
+			printf "\n , \np,Play all in the directory\ni,Play all in the directory with index\nm,Add to Bookmark\nM,Goto Bookmark\ns,Search\nj,Jump\nb,Back\nr,root directory\n"
 		)  | column -t -s ','
 		while : ; do
 			printf "\nYour choice:"
@@ -327,6 +335,11 @@ function start(){
 				add_bookmark "$work_dir" "$n"
 			elif [[ "$tmp" == "M" ]]; then	
 				bookmark
+			elif [[ "$tmp" == "j" ]]; then	
+				printf "Input folder ID: "
+				read fid
+
+				export work_dir=$fid
 			fi
 		else
 			if [[ "${METATYPE[$tmp]}" == "application/vnd.google-apps.folder" ]];then
